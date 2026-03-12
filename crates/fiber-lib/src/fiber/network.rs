@@ -1117,7 +1117,7 @@ where
                 if let Some(reply) = reply {
                     // Build the funding cell output based on the channel parameters
                     let funding_tx_view = funding_tx.into_view();
-                    
+
                     // Build the unsigned funding transaction by adding the funding output
                     // to the transaction provided by the external wallet
                     let request = FundingRequest {
@@ -1137,15 +1137,14 @@ where
                     let rpc_reply = RpcReplyPort::from(send);
 
                     // Send the message to build the unsigned funding tx
-                    let _ =
-                        state
-                            .chain_actor
-                            .send_message(CkbChainMessage::BuildFundingTxFromExternal {
-                                funding_tx: fiber_funding_tx,
-                                request,
-                                funding_cell_lock_script: funding_cell_lock_script.into(),
-                                reply: rpc_reply,
-                            });
+                    let _ = state.chain_actor.send_message(
+                        CkbChainMessage::BuildFundingTxFromExternal {
+                            funding_tx: fiber_funding_tx,
+                            request,
+                            funding_cell_lock_script,
+                            reply: rpc_reply,
+                        },
+                    );
 
                     // Wait for the result
                     match tokio::time::timeout(
@@ -3297,7 +3296,7 @@ where
             Some(generate_channel_actor_name(&self.peer_id, &peer_id)),
             ChannelActor::new(self.get_public_key(), remote_pubkey, network.clone(), store),
             ChannelInitializationParameter {
-                operation:                 ChannelInitializationOperation::OpenChannelWithExternalFunding(
+                operation: ChannelInitializationOperation::OpenChannelWithExternalFunding(
                     OpenChannelWithExternalFundingParameter {
                         funding_amount,
                         seed,
@@ -4532,6 +4531,8 @@ where
             features,
             channel_ephemeral_config: ChannelEphemeralConfig {
                 funding_timeout_seconds: config.funding_timeout_seconds,
+                external_funding_timeout_seconds: config.external_funding_timeout_seconds,
+                external_funding: Default::default(),
             },
             inflight_payments: Default::default(),
             pending_external_funding_replies: Default::default(),

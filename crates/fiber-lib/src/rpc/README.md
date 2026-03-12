@@ -368,8 +368,20 @@ Opens a channel with external funding. The node will negotiate the channel with 
 * `public` - <em>`Option<bool>`</em>, Whether this is a public channel (will be broadcasted to network, and can be used to forward TLCs), an optional parameter, default value is true.
 * `funding_udt_type_script` - <em>`Option<Script>`</em>, The type script of the UDT to fund the channel with, an optional parameter.
 * `shutdown_script` - <em>`Script`</em>, The script used to receive the channel balance when the channel is closed. This is REQUIRED for external funding.
-* `funding_lock_script` - <em>`Script`</em>, The lock script that controls the funding cells. The node will collect cells with this lock script
- to build the funding transaction. The user must be able to sign for this lock script.
+* `funding_tx` - <em>`ckb_jsonrpc_types::Transaction`</em>, A partially constructed transaction from the external wallet (e.g., CCC).
+ This transaction should contain:
+ - inputs: The cells to be used for funding (will be consumed)
+ - cell_deps: The dependencies required to unlock the input cells
+ - outputs: Can be empty or contain change outputs
+
+ Fiber will add the funding cell output to this transaction and return
+ the complete unsigned transaction for the wallet to sign.
+
+ Example workflow with CCC:
+ 1. CCC creates a transaction with inputs/cell_deps using `completeInputsByCapacity`
+ 2. Pass that transaction here as `funding_tx`
+ 3. Fiber adds the funding cell output and returns the complete tx
+ 4. CCC signs the transaction and submits it via `submit_signed_funding_tx`
 * `commitment_delay_epoch` - <em>`Option<EpochNumberWithFraction>`</em>, The delay time for the commitment transaction, must be an [EpochNumberWithFraction](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0017-tx-valid-since/e-i-l-encoding.png) in u64 format, an optional parameter, default value is 1 epoch, which is 4 hours.
 * `commitment_fee_rate` - <em>`Option<u64>`</em>, The fee rate for the commitment transaction, an optional parameter.
 * `funding_fee_rate` - <em>`Option<u64>`</em>, The fee rate for the funding transaction, an optional parameter.

@@ -45,6 +45,7 @@ impl Store {
             .expect("get should be OK")
     }
 
+    #[allow(dead_code)]
     pub(crate) fn delete<K: AsRef<[u8]>>(&self, key: K) {
         self.db.delete(key).expect("Unexpected error from get");
     }

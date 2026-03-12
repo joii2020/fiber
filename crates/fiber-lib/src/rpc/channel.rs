@@ -367,10 +367,10 @@ pub struct OpenChannelWithExternalFundingParams {
     /// - inputs: The cells to be used for funding (will be consumed)
     /// - cell_deps: The dependencies required to unlock the input cells
     /// - outputs: Can be empty or contain change outputs
-    /// 
+    ///
     /// Fiber will add the funding cell output to this transaction and return
     /// the complete unsigned transaction for the wallet to sign.
-    /// 
+    ///
     /// Example workflow with CCC:
     /// 1. CCC creates a transaction with inputs/cell_deps using `completeInputsByCapacity`
     /// 2. Pass that transaction here as `funding_tx`
