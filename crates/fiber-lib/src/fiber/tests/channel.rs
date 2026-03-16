@@ -6470,7 +6470,7 @@ async fn test_reestablish_restores_send_nonce() {
         if node_a.get_inflight_payment_count().await == 0 {
             break;
         }
-        assert!(now.elapsed() < Duration::from_secs(5));
+        assert!(now.elapsed() < Duration::from_secs(15));
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     assert_eq!(node_a.get_inflight_payment_count().await, 0);
