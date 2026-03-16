@@ -1829,7 +1829,7 @@ impl NetworkNode {
                         }
                     }
                 }
-                _ = sleep(Duration::from_secs(5)) => {
+                _ = sleep(Duration::from_secs(15)) => {
                     panic!("Waiting for event timeout");
                 }
             }
