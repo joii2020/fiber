@@ -2303,6 +2303,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "fiber-ffi"
+version = "0.9.0-rc2"
+dependencies = [
+ "ckb-chain-spec",
+ "ckb-resource",
+ "clap-serde-derive",
+ "fnn",
+ "hex",
+ "ractor",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "fiber-json-types"
 version = "0.9.0-rc2"
 dependencies = [

@@ -11,9 +11,69 @@ NATIVE_PACKAGES = -p fnn -p fiber-bin -p fnn-cli -p fiber-store -p fiber-types -
 NATIVE_NO_FIBER_TYPES = -p fnn -p fiber-bin -p fnn-cli -p fiber-store -p fiber-json-types
 WASM_PACKAGES = -p fiber-wasm -p fiber-wasm-db-worker -p fiber-wasm-db-common
 
+ANDROID_API ?= 23
+ANDROID_ABIS ?= arm64-v8a
+ANDROID_FEATURES ?= sqlite
+ANDROID_NDK_HOME ?= $(NDK_HOME)
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+ANDROID_HOST_TAG ?= $(if $(filter Linux,$(UNAME_S)),linux-x86_64,$(if $(filter Darwin,$(UNAME_S)),$(if $(filter arm64,$(UNAME_M)),darwin-arm64,darwin-x86_64),unknown))
+ANDROID_OUT_DIR ?= $(CARGO_TARGET_DIR)/android
+
 .PHONY: build-metrics-prof
 build-metrics-prof:
 	RUSTFLAGS="${RUSTFLAGS} --cfg tokio_unstable -Cforce-frame-pointers=yes" cargo +nightly build --profile prof --features "metrics pprof"
+
+.PHONY: android-so
+android-so:
+	@if [ -z "$(ANDROID_NDK_HOME)" ]; then \
+		echo "ANDROID_NDK_HOME or NDK_HOME must point to an Android NDK"; \
+		exit 1; \
+	fi
+	@if [ "$(ANDROID_HOST_TAG)" = "unknown" ]; then \
+		echo "Unsupported Android NDK host: $$(uname -s)-$$(uname -m)"; \
+		exit 1; \
+	fi
+	@set -e; \
+	ndk_bin="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/$(ANDROID_HOST_TAG)/bin"; \
+	shim_dir="$$(pwd)/$(CARGO_TARGET_DIR)/android-toolchain-shims"; \
+	mkdir -p "$$shim_dir"; \
+	for abi in $(ANDROID_ABIS); do \
+		case "$$abi" in \
+			arm64-v8a) target="aarch64-linux-android"; linker_prefix="aarch64-linux-android"; env_target="AARCH64_LINUX_ANDROID" ;; \
+			armeabi-v7a) target="armv7-linux-androideabi"; linker_prefix="armv7a-linux-androideabi"; env_target="ARMV7_LINUX_ANDROIDEABI" ;; \
+			x86_64) target="x86_64-linux-android"; linker_prefix="x86_64-linux-android"; env_target="X86_64_LINUX_ANDROID" ;; \
+			x86) target="i686-linux-android"; linker_prefix="i686-linux-android"; env_target="I686_LINUX_ANDROID" ;; \
+			*) echo "Unsupported Android ABI: $$abi"; exit 1 ;; \
+		esac; \
+		linker="$$ndk_bin/$${linker_prefix}$(ANDROID_API)-clang"; \
+		linkerxx="$$ndk_bin/$${linker_prefix}$(ANDROID_API)-clang++"; \
+		if [ ! -x "$$linker" ]; then \
+			echo "Android linker not found or not executable: $$linker"; \
+			exit 1; \
+		fi; \
+		ln -sf "$$linker" "$$shim_dir/$${target}-clang"; \
+		ln -sf "$$linkerxx" "$$shim_dir/$${target}-clang++"; \
+		ln -sf "$$ndk_bin/llvm-ar" "$$shim_dir/$${target}-ar"; \
+		ln -sf "$$ndk_bin/llvm-ranlib" "$$shim_dir/$${target}-ranlib"; \
+		echo "Building fiber-ffi for $$abi ($$target)"; \
+		rustup target add "$$target"; \
+		env \
+			PATH="$$shim_dir:$$ndk_bin:$$PATH" \
+			ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
+			ANDROID_NDK_ROOT="$(ANDROID_NDK_HOME)" \
+			CC_$$(printf '%s' "$$target" | tr '-' '_')="$$linker" \
+			CXX_$$(printf '%s' "$$target" | tr '-' '_')="$$linkerxx" \
+			AR_$$(printf '%s' "$$target" | tr '-' '_')="$$ndk_bin/llvm-ar" \
+			RANLIB_$$(printf '%s' "$$target" | tr '-' '_')="$$ndk_bin/llvm-ranlib" \
+			AR="$$ndk_bin/llvm-ar" \
+			RANLIB="$$ndk_bin/llvm-ranlib" \
+			CARGO_TARGET_$${env_target}_LINKER="$$linker" \
+			BINDGEN_EXTRA_CLANG_ARGS="--sysroot=$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/$(ANDROID_HOST_TAG)/sysroot --target=$$target -D__ANDROID_API__=$(ANDROID_API)" \
+			cargo build --release -p fiber-ffi --target "$$target" --no-default-features --features "$(ANDROID_FEATURES)"; \
+		mkdir -p "$(ANDROID_OUT_DIR)/$$abi"; \
+		cp "$(CARGO_TARGET_DIR)/$$target/release/libfiber_ffi.so" "$(ANDROID_OUT_DIR)/$$abi/libfiber_ffi.so"; \
+	done
 
 .PHONY: test
 test:
